@@ -17,6 +17,11 @@ import { legalDataRouter } from "./routes/legalData";
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 
+// APP_BASE_PATH lets local dev mirror the nginx path prefix (e.g. /specter).
+// In production nginx strips the prefix before forwarding, so leave this unset.
+// Locally set APP_BASE_PATH=/specter so URLs match production exactly.
+const BASE = (process.env.APP_BASE_PATH ?? "").replace(/\/$/, "");
+
 app.use(
   cors({
     origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
@@ -26,19 +31,19 @@ app.use(
 
 app.use(express.json({ limit: "50mb" }));
 
-app.use("/chat", chatRouter);
-app.use("/projects", projectsRouter);
-app.use("/projects/:projectId/chat", projectChatRouter);
-app.use("/single-documents", documentsRouter);
-app.use("/tabular-review", tabularRouter);
-app.use("/workflows", workflowsRouter);
-app.use("/user", userRouter);
-app.use("/users", userRouter);
-app.use("/download", downloadsRouter);
-app.use("/activity", activityRouter);
-app.use("/legal-data", legalDataRouter);
+app.use(`${BASE}/chat`, chatRouter);
+app.use(`${BASE}/projects`, projectsRouter);
+app.use(`${BASE}/projects/:projectId/chat`, projectChatRouter);
+app.use(`${BASE}/single-documents`, documentsRouter);
+app.use(`${BASE}/tabular-review`, tabularRouter);
+app.use(`${BASE}/workflows`, workflowsRouter);
+app.use(`${BASE}/user`, userRouter);
+app.use(`${BASE}/users`, userRouter);
+app.use(`${BASE}/download`, downloadsRouter);
+app.use(`${BASE}/activity`, activityRouter);
+app.use(`${BASE}/legal-data`, legalDataRouter);
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get(`${BASE}/health`, (_req, res) => res.json({ ok: true }));
 
 /**
  * Print a concise integration summary at boot so operators can immediately
