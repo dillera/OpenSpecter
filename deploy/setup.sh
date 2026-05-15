@@ -4,7 +4,7 @@
 set -euo pipefail
 
 APP_DIR="/root/apps/open-spector"
-BACKEND_DIR="${APP_DIR}/open-specter-main/backend"
+BACKEND_DIR="${APP_DIR}/backend"
 SERVICE_NAME="open-specter"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 NGINX_CONF="/etc/nginx/sites-enabled/apps.diller.org"
@@ -114,7 +114,7 @@ fi
 # ── 5. Summary ─────────────────────────────────────────────────────────────────
 log ""
 log "Setup complete. Next steps:"
-log "  1. Clone / pull the repo:          cd ${APP_DIR} && git clone https://github.com/dillera/OpenSpecter.git open-specter-main (or run deploy.sh)"
+log "  1. Clone / pull the repo:          run deploy.sh (it will clone for you)"
 log "  2. Create the env file:            cp ${BACKEND_DIR}/.env.example ${BACKEND_DIR}/.env && \$EDITOR ${BACKEND_DIR}/.env"
 log "  3. Deploy and start the service:   bash $(dirname "$0")/deploy.sh"
 log "  4. Check service logs:             journalctl -u ${SERVICE_NAME} -f"

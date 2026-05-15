@@ -35,10 +35,10 @@ The service is enabled at boot but **not started** until you complete the next t
 The deploy script will refuse to run without a `.env` file. After the first `git clone` (or after running `deploy.sh` once and letting it fail on the missing-env check), copy the example and fill in your values:
 
 ```bash
-cp /root/apps/open-spector/open-specter-main/backend/.env.example \
-   /root/apps/open-spector/open-specter-main/backend/.env
+cp /root/apps/open-spector/backend/.env.example \
+   /root/apps/open-spector/backend/.env
 
-nano /root/apps/open-spector/open-specter-main/backend/.env
+nano /root/apps/open-spector/backend/.env
 ```
 
 Required values:
@@ -150,13 +150,13 @@ systemctl restart open-specter
 
 ## SQLite database
 
-The SQLite database is created automatically on first startup at the path set by `DATABASE_PATH` in `.env` (default: `./data/openspecter.db` relative to the backend directory, i.e. `/root/apps/open-spector/open-specter-main/backend/data/openspecter.db`).
+The SQLite database is created automatically on first startup at the path set by `DATABASE_PATH` in `.env` (default: `./data/openspecter.db` relative to the backend directory, i.e. `/root/apps/open-spector/backend/data/openspecter.db`).
 
 Drizzle migrations run automatically at startup — no manual migration step is needed.
 
 Back up the database by copying that file while the service is stopped, or use SQLite's online backup:
 
 ```bash
-sqlite3 /root/apps/open-spector/open-specter-main/backend/data/openspecter.db \
+sqlite3 /root/apps/open-spector/backend/data/openspecter.db \
   ".backup /root/backups/openspecter-$(date +%Y%m%d).db"
 ```

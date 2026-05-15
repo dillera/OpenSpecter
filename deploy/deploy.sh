@@ -5,7 +5,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/dillera/OpenSpecter.git"
 APP_DIR="/root/apps/open-spector"
-BACKEND_DIR="${APP_DIR}/open-specter-main/backend"
+BACKEND_DIR="${APP_DIR}/backend"
 SERVICE_NAME="open-specter"
 BRANCH="main"
 
