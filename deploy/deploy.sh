@@ -20,13 +20,17 @@ if [[ ! -f "${BACKEND_DIR}/.env" ]]; then
     die ".env not found at ${BACKEND_DIR}/.env — copy backend/.env.example, fill in values, then re-run."
 fi
 
-# ── 3. Install dependencies ───────────────────────────────────────────────────
+# ── 3. Install dependencies (including devDeps needed for tsc) ───────────────
 log "Installing dependencies..."
-npm --prefix "${BACKEND_DIR}" ci --omit=dev --silent
+npm --prefix "${BACKEND_DIR}" ci --silent
 
 # ── 4. Build ──────────────────────────────────────────────────────────────────
 log "Building..."
 npm --prefix "${BACKEND_DIR}" run build
+
+# ── 4b. Prune devDependencies from production install ─────────────────────────
+log "Pruning dev dependencies..."
+npm --prefix "${BACKEND_DIR}" prune --omit=dev --silent
 
 # ── 5. Restart service ────────────────────────────────────────────────────────
 if systemctl is-active --quiet "${SERVICE_NAME}"; then
