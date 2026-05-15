@@ -74,6 +74,47 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 
+// ─── User profile ────────────────────────────────────────────────────────────
+
+export interface ServerProfile {
+    display_name: string | null;
+    organisation: string | null;
+    tier: string;
+    message_credits_used: number;
+    credits_reset_date: string;
+    tabular_model: string;
+    claude_api_key: string | null;
+    gemini_api_key: string | null;
+}
+
+export type ProfilePatch = Partial<{
+    display_name: string | null;
+    organisation: string | null;
+    tabular_model: string;
+    claude_api_key: string | null;
+    gemini_api_key: string | null;
+    message_credits_used: number;
+    credits_reset_date: string;
+}>;
+
+export async function ensureProfile(): Promise<void> {
+    return apiRequest<void>("/user/profile", { method: "POST" });
+}
+
+export async function getProfile(): Promise<ServerProfile> {
+    return apiRequest<ServerProfile>("/user/profile");
+}
+
+export async function patchProfile(patch: ProfilePatch): Promise<void> {
+    return apiRequest<void>("/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+    });
+}
+
+// ─── Activity ─────────────────────────────────────────────────────────────────
+
 export type RecentActivityEventType =
     | "assistant_chat_created"
     | "tabular_review_created"

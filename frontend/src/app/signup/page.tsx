@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { ensureProfile, patchProfile } from "@/app/lib/openSpecterApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2 } from "lucide-react";
@@ -54,23 +55,19 @@ export default function SignupPage() {
             if (error) throw error;
 
             if (data.session) {
-                const trimmedName = name.trim();
-                const trimmedOrg = organisation.trim();
-                if (trimmedName || trimmedOrg) {
-                    const { error: profileError } = await supabase
-                        .from("user_profiles")
-                        .update({
+                try {
+                    // Create the SQLite profile row on the backend
+                    await ensureProfile();
+                    const trimmedName = name.trim();
+                    const trimmedOrg = organisation.trim();
+                    if (trimmedName || trimmedOrg) {
+                        await patchProfile({
                             ...(trimmedName && { display_name: trimmedName }),
                             ...(trimmedOrg && { organisation: trimmedOrg }),
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq("user_id", data.session.user.id);
-                    if (profileError) {
-                        console.error(
-                            "[signup] failed to persist profile fields",
-                            profileError,
-                        );
+                        });
                     }
+                } catch (e) {
+                    console.error("[signup] failed to provision profile", e);
                 }
             }
             setSuccess(true);
