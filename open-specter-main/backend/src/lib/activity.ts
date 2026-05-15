@@ -1,4 +1,6 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { db } from "./db";
+import { activityEvents } from "../schema";
+import { eq, and, gt, sql } from "drizzle-orm";
 
 type ActivityEventType =
   | "assistant_chat_created"
@@ -6,7 +8,6 @@ type ActivityEventType =
   | "workflow_used";
 
 interface ActivityInput {
-  db: SupabaseClient;
   userId: string;
   eventType: ActivityEventType;
   title: string;
@@ -17,7 +18,6 @@ interface ActivityInput {
 }
 
 interface ActivityLookupInput {
-  db: SupabaseClient;
   userId: string;
   eventType: ActivityEventType;
   entityType: string;
@@ -25,25 +25,26 @@ interface ActivityLookupInput {
 }
 
 export async function activityEventExists({
-  db,
   userId,
   eventType,
   entityType,
   entityId,
 }: ActivityLookupInput) {
   try {
-    const { count, error } = await db
-      .from("activity_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", eventType)
-      .eq("entity_type", entityType)
-      .eq("entity_id", entityId);
-    if (error) {
-      console.warn("[activity] failed to check existing event", error.message);
-      return false;
-    }
-    return (count ?? 0) > 0;
+    const rows = db
+      .select({ id: activityEvents.id })
+      .from(activityEvents)
+      .where(
+        and(
+          eq(activityEvents.userId, userId),
+          eq(activityEvents.eventType, eventType),
+          eq(activityEvents.entityType, entityType),
+          eq(activityEvents.entityId, entityId),
+        ),
+      )
+      .limit(1)
+      .all();
+    return rows.length > 0;
   } catch (err) {
     console.warn("[activity] failed to check existing event", err);
     return false;
@@ -51,34 +52,34 @@ export async function activityEventExists({
 }
 
 export async function updateActivityTitle({
-  db,
   userId,
   entityType,
   entityId,
   title,
 }: {
-  db: SupabaseClient;
   userId: string;
   entityType: string;
   entityId: string;
   title: string;
 }) {
   try {
-    const { error } = await db
-      .from("activity_events")
-      .update({ title })
-      .eq("user_id", userId)
-      .eq("event_type", "assistant_chat_created")
-      .eq("entity_type", entityType)
-      .eq("entity_id", entityId);
-    if (error) console.warn("[activity] failed to update title", error.message);
+    db.update(activityEvents)
+      .set({ title })
+      .where(
+        and(
+          eq(activityEvents.userId, userId),
+          eq(activityEvents.eventType, "assistant_chat_created"),
+          eq(activityEvents.entityType, entityType),
+          eq(activityEvents.entityId, entityId),
+        ),
+      )
+      .run();
   } catch (err) {
     console.warn("[activity] failed to update title", err);
   }
 }
 
 export async function logActivityEvent({
-  db,
   userId,
   eventType,
   title,
@@ -88,19 +89,17 @@ export async function logActivityEvent({
   metadata = {},
 }: ActivityInput) {
   try {
-    const { error } = await db.from("activity_events").insert({
-      user_id: userId,
-      project_id: projectId,
-      event_type: eventType,
-      entity_type: entityType,
-      entity_id: entityId,
-      title,
-      metadata,
-    });
-    if (error) {
-      // Never block the primary product flow because activity tracking failed.
-      console.warn("[activity] failed to record event", error.message);
-    }
+    db.insert(activityEvents)
+      .values({
+        userId,
+        projectId,
+        eventType,
+        entityType,
+        entityId,
+        title,
+        metadata,
+      })
+      .run();
   } catch (err) {
     console.warn("[activity] failed to record event", err);
   }
@@ -111,4 +110,20 @@ export function titleFromPrompt(value: unknown, fallback: string) {
   const clean = value.replace(/\s+/g, " ").trim();
   if (!clean) return fallback;
   return clean.length > 90 ? `${clean.slice(0, 87)}...` : clean;
+}
+
+export function scheduleAnonymousUserCleanup(
+  deleteUser: (userId: string) => Promise<void>,
+) {
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  setInterval(() => {
+    try {
+      const cutoff = new Date(Date.now() - 7 * ONE_DAY_MS).toISOString();
+      // Activity events older than 7 days for anonymous users — placeholder.
+      // Real anonymous user deletion requires integration with Supabase Auth.
+      console.log("[cleanup] anonymous user cleanup skipped (no local auth store)");
+    } catch (err) {
+      console.warn("[cleanup] anonymous user cleanup failed", err);
+    }
+  }, ONE_DAY_MS);
 }

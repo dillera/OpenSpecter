@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { initDb } from "./lib/initDb";
+initDb();
 import express from "express";
 import cors from "cors";
 import { chatRouter } from "./routes/chat";

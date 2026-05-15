@@ -2,7 +2,9 @@ import { Router } from "express";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { requireAuth } from "../middleware/auth";
-import { createServerSupabase } from "../lib/supabase";
+import { db } from "../lib/db";
+import { userProfiles } from "../schema";
+import { eq } from "drizzle-orm";
 
 export const legalDataRouter = Router();
 
@@ -105,19 +107,14 @@ if (BOOT_API_KEY) {
 }
 
 /** Resolve the LDH API key: user's own key first, then system default env. */
-async function resolveLegalDataHunterKey(
-    userId: string,
-    db: ReturnType<typeof createServerSupabase>,
-): Promise<string | null> {
-    // Select * so a missing column (pre-migration) doesn't throw.
-    const { data } = await db
-        .from("user_profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
-    const userKey = (data as Record<string, unknown> | null)?.[
-        "legal_data_hunter_api_key"
-    ];
+function resolveLegalDataHunterKey(userId: string): string | null {
+    const [profile] = db
+        .select({ legalDataHunterApiKey: userProfiles.legalDataHunterApiKey })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
+        .limit(1)
+        .all();
+    const userKey = profile?.legalDataHunterApiKey;
     if (typeof userKey === "string" && userKey.trim()) return userKey.trim();
     return process.env.LEGAL_DATA_HUNTER_API_KEY ?? null;
 }
@@ -125,8 +122,7 @@ async function resolveLegalDataHunterKey(
 /** GET /api/legal-data/countries — list countries with document counts. */
 legalDataRouter.get("/countries", requireAuth, async (_req, res) => {
     const userId = res.locals.userId as string;
-    const db = createServerSupabase();
-    const apiKey = await resolveLegalDataHunterKey(userId, db);
+    const apiKey = resolveLegalDataHunterKey(userId);
     if (!apiKey) {
         return void res.status(400).json({
             detail: "LegalDataHunter API key is not configured.",
@@ -152,8 +148,7 @@ legalDataRouter.get("/countries", requireAuth, async (_req, res) => {
 /** POST /api/legal-data/search — hybrid semantic + keyword search. */
 legalDataRouter.post("/search", requireAuth, async (req, res) => {
     const userId = res.locals.userId as string;
-    const db = createServerSupabase();
-    const apiKey = await resolveLegalDataHunterKey(userId, db);
+    const apiKey = resolveLegalDataHunterKey(userId);
     if (!apiKey) {
         return void res.status(400).json({
             detail: "LegalDataHunter API key is not configured.",

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
-import { createServerSupabase } from "../lib/supabase";
+import { db } from "../lib/db";
+import { activityEvents } from "../schema";
+import { eq, desc } from "drizzle-orm";
 
 export const activityRouter = Router();
 
@@ -29,20 +31,26 @@ activityRouter.get("/recent", requireAuth, async (req, res) => {
   const limit = Number.isFinite(requested)
     ? Math.max(1, Math.min(MAX_LIMIT, Math.floor(requested)))
     : MAX_LIMIT;
-  const db = createServerSupabase();
 
-  const { data, error } = await db
-    .from("activity_events")
-    .select("id, event_type, entity_type, entity_id, project_id, title, metadata, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  const data = db.select({
+    id: activityEvents.id,
+    event_type: activityEvents.eventType,
+    entity_type: activityEvents.entityType,
+    entity_id: activityEvents.entityId,
+    project_id: activityEvents.projectId,
+    title: activityEvents.title,
+    metadata: activityEvents.metadata,
+    created_at: activityEvents.createdAt,
+  }).from(activityEvents).where(eq(activityEvents.userId, userId)).orderBy(desc(activityEvents.createdAt)).limit(limit).all();
 
-  if (error) return void res.status(500).json({ detail: error.message });
-
-  const events = (data ?? []).map((event) => ({
+  const events = data.map((event) => ({
     ...event,
-    entity_url: entityUrl(event),
+    entity_url: entityUrl({
+      event_type: event.event_type,
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
+      project_id: event.project_id,
+    }),
   }));
 
   res.json(events);

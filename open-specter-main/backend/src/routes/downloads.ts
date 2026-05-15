@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
-import { createServerSupabase } from "../lib/supabase";
+import { db } from "../lib/db";
+import { documents, documentVersions } from "../schema";
+import { eq } from "drizzle-orm";
 import { buildContentDisposition, downloadFile } from "../lib/storage";
 import { verifyDownload } from "../lib/downloadTokens";
 import { ensureDocAccess } from "../lib/access";
@@ -25,35 +27,30 @@ downloadsRouter.get("/:token", requireAuth, async (req, res) => {
     if (!info)
         return void res.status(404).json({ detail: "Invalid link" });
 
-    const db = createServerSupabase();
-    let version:
-        | {
-              id: string;
-              document_id: string;
-          }
-        | null = null;
-
-    const { data: byStoragePath } = await db
-        .from("document_versions")
-        .select("id, document_id")
-        .eq("storage_path", info.path)
-        .maybeSingle();
-    if (byStoragePath) {
-        version = byStoragePath as { id: string; document_id: string };
-    }
+    const [version] = db
+        .select({ id: documentVersions.id, documentId: documentVersions.documentId })
+        .from(documentVersions)
+        .where(eq(documentVersions.storagePath, info.path))
+        .limit(1)
+        .all();
 
     if (!version)
         return void res.status(404).json({ detail: "File not found" });
 
-    const { data: doc } = await db
-        .from("documents")
-        .select("id, user_id, project_id")
-        .eq("id", version.document_id)
-        .single();
+    const [doc] = db
+        .select({ id: documents.id, userId: documents.userId, projectId: documents.projectId })
+        .from(documents)
+        .where(eq(documents.id, version.documentId))
+        .limit(1)
+        .all();
     if (!doc)
         return void res.status(404).json({ detail: "File not found" });
 
-    const access = await ensureDocAccess(doc, userId, userEmail, db);
+    const access = await ensureDocAccess(
+        { user_id: doc.userId, project_id: doc.projectId ?? null },
+        userId,
+        userEmail,
+    );
     if (!access.ok)
         return void res.status(404).json({ detail: "File not found" });
 
